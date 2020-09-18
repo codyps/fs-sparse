@@ -1,0 +1,6 @@
+#! /bin/bash
+set -euf -o pipefail
+set -x
+
+dd if=/dev/zero of=test_1.bin bs=1 count=1 seek=$((10 * 1024 * 1024 * 1024))
+dd if=/dev/zero of=test_0.bin bs=1 count=0 seek=$((10 * 1024 * 1024 * 1024))
