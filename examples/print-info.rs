@@ -1,5 +1,7 @@
 #![warn(rust_2018_idioms)]
 
+use libc::SEEK_END;
+
 #[cfg(target_os = "macos")]
 mod macos {
     pub const SEEK_HOLE: i32 = 3;
@@ -19,6 +21,9 @@ use std::convert::TryInto;
 // macos: has fcntl(dst_fd, F_PUNCHHOLE, &punchhole_args) to punch holes into existing files
 //
 // https://opensource.apple.com/source/copyfile/copyfile-166.40.1/copyfile.c.auto.html
+
+
+// http://git.savannah.gnu.org/cgit/tar.git/tree/src/sparse.c#n273
 
 fn usage(e: i32) -> ! {
     let ename = std::env::args().next().unwrap();
@@ -55,6 +60,11 @@ fn one_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
                 /* macos/apfs: If this is the first extent, this may be an all-hole file. We
                  * _probably_ need to examine */
+                println!("ENXIO");
+
+                let end = seek(&file, 0, SEEK_END)?;
+                println!("END: {}", end);
+                break;
             }
             Err(e) => {
                 panic!(e);
