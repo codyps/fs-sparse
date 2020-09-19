@@ -16,6 +16,10 @@ use std::io;
 use std::fs::File;
 use std::convert::TryInto;
 
+// macos: has fcntl(dst_fd, F_PUNCHHOLE, &punchhole_args) to punch holes into existing files
+//
+// https://opensource.apple.com/source/copyfile/copyfile-166.40.1/copyfile.c.auto.html
+
 fn usage(e: i32) -> ! {
     let ename = std::env::args().next().unwrap();
 
@@ -29,9 +33,9 @@ Usage: {0} <input_file>
     std::process::exit(e)
 }
 
-fn seek(file: &File, loc: i32) -> io::Result<u64> {
+fn seek(file: &File, offset: u64, loc: i32) -> io::Result<u64> {
     // TODO: use lseek64 on 32-bit platforms that have it for larger seeks
-    let off = unsafe { libc::lseek(file.as_raw_fd(), 0, loc) };
+    let off = unsafe { libc::lseek(file.as_raw_fd(), offset.try_into().unwrap(), loc) };
     if off < 0 {
         // error!
         return Err(io::Error::last_os_error());
@@ -43,19 +47,30 @@ fn seek(file: &File, loc: i32) -> io::Result<u64> {
 fn one_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let file = std::fs::File::open(path)?;
 
+    let mut offset = 0;
     loop {
-        let off = match seek(&file, SEEK_DATA) {
-            Err(ref e)
+        match seek(&file, offset, SEEK_DATA) {
+            Err(ref e) if e.raw_os_error() == Some(libc::ENXIO) => {
+                /* No more data. */
+
+                /* macos/apfs: If this is the first extent, this may be an all-hole file. We
+                 * _probably_ need to examine */
+            }
+            Err(e) => {
+                panic!(e);
+            }
+            Ok(off) => {
+                println!("DATA: {} {}", off, offset);
+                offset = off;
+                if off == 0 {
+                    break;
+                }
+            }
         }
 
-        println!("DATA: {}", off);
-        if off == 0 {
-            break;
-        }
-
-        let off = seek(&file, SEEK_HOLE).unwrap();
-
-        println!("HOLE: {}", off);
+        let off = seek(&file, offset, SEEK_HOLE).unwrap();
+        println!("HOLE: {} {}", off, offset);
+        offset = off;
         if off == 0 {
             break;
         }
