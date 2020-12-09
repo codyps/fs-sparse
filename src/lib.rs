@@ -30,6 +30,9 @@
 //!    Mixing iterations and reads may not work properly
 //!  - On Windows, files must specifically be marked as sparse (they have a seperate mode). If
 //!    files are not sparse, this library indicates the entire file is one big `Data`.
+//!  - On some systems, if zero bytes are _written_ to a file, it may still be considered a hole
+//!    when read back. DO NOT assume that holes are locations that were never written to (looking at
+//!    you, bmap-tools). This behavior is visible in (at least) zfsonlinux 0.8.4.
 //!
 // # Portability (internal)
 //

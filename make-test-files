@@ -2,5 +2,23 @@
 set -euf -o pipefail
 set -x
 
-dd if=/dev/zero of=test_1.bin bs=1 count=1 seek=$((10 * 1024 * 1024 * 1024))
-dd if=/dev/zero of=test_0.bin bs=1 count=0 seek=$((10 * 1024 * 1024 * 1024))
+printf "\xff" >>ff_byte.bin
+
+# entire file is a hole
+rm -f test_0.bin
+dd if=ff_byte.bin of=test_0.bin bs=1 count=0 seek=$((10 * 1024 * 1024 * 1024))
+
+# file starts with a hole and has 1 byte of data at the end
+rm -f test_1.bin
+dd if=ff_byte.bin of=test_1.bin bs=1 count=1 seek=$((10 * 1024 * 1024 * 1024))
+
+# file starts with 1 byte and ends with a large hole
+rm -f test_2.bin
+dd if=ff_byte.bin of=test_2.bin bs=1 count=0 seek=$((10 * 1024 * 1024 * 1024))
+dd if=ff_byte.bin of=test_2.bin bs=1 count=1 conv=notrunc
+
+# file starts with 1 byte, has a large hole in the middle, and ends with 1 byte
+rm -f test_3.bin
+dd if=ff_byte.bin of=test_3.bin bs=1 count=1 seek=$((10 * 1024 * 1024 * 1024))
+dd if=ff_byte.bin of=test_3.bin bs=1 count=1 conv=notrunc
+
